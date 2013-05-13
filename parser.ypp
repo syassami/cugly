@@ -1,0 +1,515 @@
+%{
+	#include <stdio.h>
+	#include "ast.hpp"
+	#include "primitive.hpp"
+	#include "symtab.hpp"
+	#define YYDEBUG 1
+	#include <iostream>
+	extern Program_ptr ast;
+	int yylex(void);
+	void yyerror(const char *);
+%}
+
+%token TYPE IDENTIFIER
+%token BOOL INT RATIONAL
+%token IF ELSE WHILE
+%token VAR FUNCTION INTARRAY
+%token AUTO RETURN YIELD
+%token TRUE_NT FALSE_NT
+
+%token PLUS MINUS TIMES DIV
+%token AS_OP EQ_OP GT_OP GE_OP LT_OP LE_OP NE_OP AND_OP OR_OP NOT_OP
+%token COLON OPENBRACKET CLOSEBRACKET OPENCURLY CLOSECURLY COMMA OPENPAREN CLOSEPAREN SEMICOLON
+%right AS_OP
+%left OR_OP
+%left AND_OP
+%left EQ_OP NE_OP
+%left GT_OP LT_OP GE_OP LE_OP
+%left PLUS MINUS
+%left TIMES DIV
+%right UNARY
+%nonassoc NOT_OP
+
+/* Enables verbose error messages */
+%error-verbose
+
+
+/*
+expr : expr PLUS expr
+{$$.u_expr = new Plus($1.u_expr, $3.u_expr);}
+| expr MINUS expr
+{$$.u_expr = new Minus($1.u_expr, $3.u_expr);}
+…
+| INT
+{$$.u_expr = new IntLit(new Primitive($1.u_base_int));}
+| IDENT
+{$$.u_expr = new Ident(new SymName($1.u_base_charptr));}
+program : functions { ast = new Program($1.u_func_list); }
+;
+functions : functions function {
+$1.u_func_list -> push_back($2.u_func);
+$$ = $1;
+}
+|  {$$.u_func_list = new list<Func_ptr>();}
+;
+function   : KEY_FUNC IDENT PAREN_O params PAREN_C COLON 
+type CURLY_O body CURLY_C {
+$$.u_func = new FuncImpl(
+$7.u_type,
+new SymName($2.u_base_charptr),
+$4.u_decl_list,
+$9.u_function_block);
+}
+;
+type : KEY_BOOL {$$.u_type = new TBoolean();}
+| KEY_INT {$$.u_type = new TInteger();}
+;
+
+
+params : params_ { $$ = $1; }
+	| { $$.u_decl_list = new list<Decl_ptr>(); }
+	;
+params_ : params_ SEMI param {
+$1.u_decl_list -> push_back($3.u_decl); $$ = $1;
+}
+| param {
+$$.u_decl_list = new list<Decl_ptr>();
+$$.u_decl_list -> push_back($1.u_decl);
+}
+;
+param : var_list COLON type {
+$$.u_decl = new DeclImpl($3.u_type, $1.u_symname_list);}
+;
+var_list : var_list COMMA IDENT {
+$1.u_symname_list -> push_back(new SymName($3.u_base_charptr));
+$$ = $1;
+}
+| IDENT {
+$$.u_symname_list = new list<SymName_ptr>();
+$$.u_symname_list -> push_back(new SymName($1.u_base_charptr));
+}
+;
+
+
+*/
+
+
+
+%%
+
+Program : L_NT 
+		{
+				ast = new ProgramImpl($1.u_func_list);
+		}
+			 
+L_NT    
+		: L_NT F_NT
+		{
+				$1.u_func_list->push_back($2.u_func);
+				$$.u_func_list = $1.u_func_list;
+		}
+		| F_NT
+		{
+				list<Func_ptr>* fpl = new list<Func_ptr>;
+				fpl->push_back($1.u_func);
+				$$.u_func_list = fpl;
+		}
+        ;
+
+F_NT 
+		: FUNCTION IDENTIFIER OPENPAREN Param_List CLOSEPAREN COLON TYPE OPENCURLY Body CLOSECURLY
+		{
+				SymName* sN = new SymName($2.u_base_charptr);
+				Type* t;
+				if($7.u_base_charptr[0] == 'b')
+				{
+					t = new TBoolean();
+					//cout << "type is bool" << endl;
+				}
+				else if($7.u_base_charptr[0] == 'i')
+				{
+					t = new TInteger();
+					//cout << "type is int" << endl;
+				}
+				else if($7.u_base_charptr[0] == 'r')
+				{
+					t = new TRational();
+					//cout << "type is rational" << endl;
+				}
+				else
+				{
+					t = new TAuto();
+					//cout << "type is auto" << endl;
+				}
+				FuncImpl* fI = new FuncImpl(sN,$4.u_decl_list,t,$9.u_funcblock);
+				$$.u_func = fI;
+		}
+		;
+
+Param_List
+		: NEParam_List
+		{
+				$$.u_decl_list = $1.u_decl_list;
+		}
+		| 	
+		{
+				list<Decl_ptr>* dPL = new list<Decl_ptr>;
+				$$.u_decl_list = dPL;
+		}
+		;
+NEParam_List
+		: Param SEMICOLON NEParam_List
+		{
+				$3.u_decl_list->push_front($1.u_decl);
+				$$.u_decl_list = $3.u_decl_list;
+		}
+		| Param 
+		{
+				list<Decl_ptr>* dPL = new list<Decl_ptr>;
+				dPL->push_back($1.u_decl);
+				$$.u_decl_list = dPL;
+		}
+		;
+Param
+		: Ident_List COLON TYPE 
+		{
+				Type* t;
+				if($3.u_base_charptr[0] == 'b')
+				{
+					t = new TBoolean();
+				}
+				else if($3.u_base_charptr[0] == 'i')
+				{
+					t = new TInteger();
+				}
+				else
+				{
+					t = new TRational();
+				}
+				$$.u_decl = new DeclImpl($1.u_symname_list,t);
+		}
+		;
+
+Ident_List
+		: IDENTIFIER COMMA Ident_List 
+		{
+				SymName* sN = new SymName($1.u_base_charptr);
+				$3.u_symname_list->push_front(sN);
+				$$.u_symname_list = $3.u_symname_list;
+		}
+		| IDENTIFIER 
+		{
+				list<SymName_ptr>* sNPl = new list<SymName_ptr>;
+				SymName* sN = new SymName($1.u_base_charptr);
+				sNPl->push_back(sN);
+				$$.u_symname_list=sNPl;
+		}
+		;
+
+
+Body
+		: Var_Dec_List F_Dec_List S_List Return_S
+		{
+				FuncBlockImpl* fBl = new FuncBlockImpl($1.u_decl_list,$2.u_func_list,$3.u_stat_list,$4.u_return);
+				$$.u_funcblock = fBl;
+		}
+
+
+Var_Dec_List
+		: NEVar_Dec_List 
+		{
+				$$.u_decl_list = $1.u_decl_list;
+		}
+		| 	
+		{
+				list<Decl_ptr>* dPl = new list<Decl_ptr>;
+				$$.u_decl_list = dPl;
+		}
+		;
+NEVar_Dec_List
+		: Var_Dec SEMICOLON NEVar_Dec_List 
+		{
+				$3.u_decl_list->push_front($1.u_decl);
+				$$.u_decl_list = $3.u_decl_list;
+			}
+		| Var_Dec SEMICOLON 
+		{
+				list<Decl_ptr>* dPl = new list<Decl_ptr>;
+				dPl->push_back($1.u_decl);
+				$$.u_decl_list = dPl;
+		}
+		;
+Var_Dec
+		: VAR Ident_List COLON Dec_Type 
+		{
+				$$.u_decl = new DeclImpl($2.u_symname_list,$4.u_type);
+		}
+		;
+Dec_Type
+		: TYPE 
+		{
+				Type* t;
+				if($1.u_base_charptr[0] == 'b')
+				{
+					t = new TBoolean();
+				}
+				else if($1.u_base_charptr[0] == 'i')
+				{
+					t = new TInteger();
+				}
+				else
+				{
+					t = new TRational();
+				}
+				$$.u_type = t;
+		}
+		| IDENTIFIER OPENBRACKET INT CLOSEBRACKET 
+		{
+				Primitive* p = new Primitive($3.u_base_int);
+				Type* t=new TIntArray(p);
+				$$.u_type = t;
+		}
+		;
+
+
+F_Dec_List
+		: NEF_Dec_List 
+		{
+				$$.u_func_list = $1.u_func_list;
+		}
+		| 	
+		{
+				list<Func_ptr>* fPL = new list<Func_ptr>;
+				$$.u_func_list = fPL;
+		}
+		;
+NEF_Dec_List
+		: F_Dec NEF_Dec_List 
+		{
+				$2.u_func_list->push_front($1.u_func);
+				$$.u_func_list = $2.u_func_list;
+			}
+		| F_Dec 
+		{
+				list<Func_ptr>* fPL = new list<Func_ptr>;
+				fPL->push_back($1.u_func);
+				$$.u_func_list = fPL;
+		}
+		;
+F_Dec
+		: F_NT 
+		{
+				$$.u_func=$1.u_func;
+		}
+		;
+
+
+S_List
+		: NES_List 
+		{
+				$$.u_stat_list = $1.u_stat_list;
+		}
+		| 
+		{
+				list<Stat_ptr>* sPL = new list<Stat_ptr>;
+				$$.u_stat_list = sPL;
+		}
+		;
+NES_List
+		: S NES_List 
+		{
+				$2.u_stat_list->push_front($1.u_stat);
+				$$.u_stat_list = $2.u_stat_list;
+		}
+		| S 
+		{
+				list<Stat_ptr>* sPL = new list<Stat_ptr>;
+				sPL->push_back($1.u_stat);
+				$$.u_stat_list = sPL;
+		}
+		;
+S
+		: Ass_S {$$.u_stat = $1.u_stat;}
+		| Arr_Ass_St {$$.u_stat = $1.u_stat;}
+		| C_S {$$.u_stat = $1.u_stat;}
+		| Arr_C_S {$$.u_stat = $1.u_stat;}
+		| If_S {$$.u_stat = $1.u_stat;}
+		| Y_S {$$.u_stat = $1.u_stat;}
+		| If_E_S {$$.u_stat = $1.u_stat;}
+		| W_S {$$.u_stat = $1.u_stat;}
+		;
+Ass_S
+		: IDENTIFIER AS_OP Expr SEMICOLON 
+		{
+				SymName* sN = new SymName($1.u_base_charptr);
+				$$.u_stat = new Assignment(sN,$3.u_expr);
+		}
+Arr_Ass_St
+		: IDENTIFIER OPENBRACKET Expr CLOSEBRACKET AS_OP Expr SEMICOLON
+		{
+				SymName* sN = new SymName($1.u_base_charptr);
+				$$.u_stat = new ArrayAssignment(sN,$3.u_expr,$6.u_expr);
+		}
+C_S
+		: IDENTIFIER AS_OP IDENTIFIER OPENPAREN Arg_List CLOSEPAREN SEMICOLON
+		{
+				SymName* sNX = new SymName($1.u_base_charptr);
+				SymName* sNY = new SymName($3.u_base_charptr);
+				$$.u_stat = new Call(sNX,sNY,$5.u_expr_list);
+		}
+Arr_C_S
+		: IDENTIFIER OPENBRACKET Expr CLOSEBRACKET AS_OP IDENTIFIER OPENPAREN Arg_List CLOSEPAREN SEMICOLON
+		{
+				SymName* sNX = new SymName($1.u_base_charptr);
+				SymName* sNY = new SymName($6.u_base_charptr);
+				$$.u_stat = new ArrayCall(sNX,$3.u_expr,sNY,$8.u_expr_list);
+		}
+Arg_List
+		: NEArg_List 
+		{
+				$$.u_expr_list = $1.u_expr_list;
+		}
+		| 	
+		{
+				list<Expr_ptr>* ePL = new list<Expr_ptr>;
+				$$.u_expr_list = ePL;
+		}
+		;
+NEArg_List
+		: Expr COMMA NEArg_List 
+		{
+				$3.u_expr_list->push_front($1.u_expr);
+				$$.u_expr_list = $3.u_expr_list;
+		}
+		| Expr
+		{
+				list<Expr_ptr>* ePL = new list<Expr_ptr>;
+				ePL->push_back($1.u_expr);
+				$$.u_expr_list = ePL;
+		}
+		;	
+If_S 
+		: IF OPENPAREN Expr CLOSEPAREN OPENCURLY S_List CLOSECURLY 
+		{
+				StatBlockImpl* sBI = new StatBlockImpl($6.u_stat_list); 
+				$$.u_stat = new IfNoElse($3.u_expr,sBI);
+		}
+		;
+Y_S 
+		: YIELD Expr SEMICOLON 
+		{
+				$$.u_stat = new Yield($2.u_expr);
+		}
+		;
+If_E_S 
+		: IF OPENPAREN Expr CLOSEPAREN OPENCURLY S_List CLOSECURLY ELSE OPENCURLY S_List CLOSECURLY 
+		{
+				StatBlockImpl* sBIA = new StatBlockImpl($6.u_stat_list); 
+				StatBlockImpl* sBIB = new StatBlockImpl($10.u_stat_list); 
+				$$.u_stat = new IfWithElse($3.u_expr,sBIA,sBIB);
+		}
+		;
+W_S 
+		: WHILE OPENPAREN Expr CLOSEPAREN OPENCURLY S_List CLOSECURLY 
+		{
+				StatBlockImpl* sBI = new StatBlockImpl($6.u_stat_list);
+				$$.u_stat = new WhileLoop($3.u_expr,sBI);
+		}
+		;
+
+
+Return_S 
+		: RETURN Expr SEMICOLON 
+		{
+				$$.u_return = new ReturnImpl($2.u_expr);
+		}
+		;
+
+
+Expr
+		: Expr OR_OP Expr {$$.u_expr = new Or($1.u_expr,$3.u_expr);}
+		| Expr AND_OP Expr {$$.u_expr = new And($1.u_expr,$3.u_expr);}
+		| Expr EQ_OP Expr {$$.u_expr = new Compare($1.u_expr,$3.u_expr);}
+		| Expr GT_OP Expr {$$.u_expr = new Gt($1.u_expr,$3.u_expr);}
+		| Expr GE_OP Expr {$$.u_expr = new Gteq($1.u_expr,$3.u_expr);}
+		| Expr LT_OP Expr {$$.u_expr = new Lt($1.u_expr,$3.u_expr);}
+		| Expr LE_OP Expr {$$.u_expr = new Lteq($1.u_expr,$3.u_expr);}
+		| Expr NE_OP Expr {$$.u_expr = new Noteq($1.u_expr,$3.u_expr);}
+		| Expr PLUS Expr {$$.u_expr = new Plus($1.u_expr,$3.u_expr);}
+		| Expr MINUS Expr {$$.u_expr = new Minus($1.u_expr,$3.u_expr);}
+		| Expr TIMES Expr {$$.u_expr = new Times($1.u_expr,$3.u_expr);}
+		| Expr DIV Expr {$$.u_expr = new Div($1.u_expr,$3.u_expr);}
+		| U_Lit {$$.u_expr = $1.u_expr;}
+		;
+
+
+U_Lit
+		: MINUS U_Lit %prec UNARY {$$.u_expr = new Uminus($2.u_expr);}
+		| NOT_OP U_Lit  {$$.u_expr = new Not($2.u_expr);}
+		| Lit {$$.u_expr = $1.u_expr;}
+		;
+Lit
+		: OPENPAREN Expr CLOSEPAREN 
+		{
+			$$.u_expr=$2.u_expr;
+		}
+		| TRUE_NT
+		{
+				// Primitive* p = new Primitive($1.u_base_int);
+				// BoolLit* b = new BoolLit(p);
+				// $$.u_expr=b;
+				$$.u_expr = new BoolLit(new Primitive($1.u_base_int));
+				// $$.u_type->m_attribute.m_basetype = bt_boolean;
+				// $$.u_type = new TBoolean();
+		}
+		| FALSE_NT
+		{
+				// Primitive* p = new Primitive($1.u_base_int);
+				// BoolLit* b = new BoolLit(p);
+				// $$.u_expr=b;
+				$$.u_expr = new BoolLit(new Primitive($1.u_base_int));
+				// $$.u_type->m_attribute.m_basetype = bt_boolean;
+				// $$.u_type = new TBoolean();
+		}
+		| RATIONAL
+		{
+				$$.u_expr=$1.u_expr;
+				// $$.u_type->m_attribute.m_basetype = bt_rational;
+				// $$.u_type = new TRational();
+		}
+		| INT
+		{
+				// Primitive* p = new Primitive($1.u_base_int);
+				// IntLit* i = new IntLit(p);
+				// $$.u_expr=i;
+				
+				 $$.u_expr = new IntLit(new Primitive($1.u_base_int)); // Maybe this works better
+				// $$.u_type->m_attribute.m_basetype = bt_integer;
+				// $$.u_type = new TInteger();
+		}
+		| IDENTIFIER
+		{
+				SymName* sN = new SymName($1.u_base_charptr);
+				Ident* i = new Ident(sN);
+				$$.u_expr=i;
+
+		}
+		| IDENTIFIER OPENBRACKET Expr CLOSEBRACKET 
+		{
+				SymName* sN = new SymName($1.u_base_charptr);
+				$$.u_expr = new ArrayAccess(sN,$3.u_expr);
+		}
+		;
+
+
+%%
+
+
+
+
+extern int yylineno;
+
+void yyerror(const char *s) {
+	fprintf(stderr, "%s at line %d\n", s, yylineno);
+	return;
+}

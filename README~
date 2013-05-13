@@ -1,0 +1,62 @@
+Project 5 By: Shayan Yassami (Previous Code Buddy Aria Pourjanzani)
+
+This project is the granddaddy of all computer science projects I've done in any class. Fundamentally I've learned a plethora about compilers and It's helped me in many ways. From scanning/parsing/typechecking to eventually generating the code has been quite a ride and not the easiest of rides, yet very informative and probably the best way to teach a student like myself aabout compilers. 
+
+
+Biggest help was the links posted by T.Sherwood in the google groups and also the slides from Liang Xia, although some things were missing from his examples, ie, visiting children manuallywhich really helped in a lot of my control flow (as seen in the code)
+
+Problems:
+
+Let me say first and foremost spelling mistakes were the largest of my probelms and not including simple offset checks have been driving me practically insane..
+
+Right now I'm encountering an error where my offset for visitIdent isn't being set correctly when generating for another function 
+
+
+For instance, In this function
+
+function Foo(z : integer) : integer 
+{
+	return z;
+}
+
+function Main() : integer
+{
+	var k : integer;
+	k := Foo(111);
+	return k;
+
+}
+
+I generate code: 
+
+.text
+
+	.globl	Main
+Foo:
+	pushl	%ebp
+	mvl	%esp,%ebp
+	subl	$0,%esp
+	pushl	0(%ebp)  ## This value here should actually say pushl 8(%ebp)
+	popl	%eax
+	movl	%ebp,%esp
+	popl	%ebp
+	ret
+Main:
+	pushl	%ebp
+	movl	%esp,%ebp
+	subl	$4,%esp
+	pushl	$111
+	call	Foo
+	movl	%eax, -4(%ebp)
+	popl %eax
+	pushl	-4(%ebp)
+	popl	%eax
+	movl	%ebp,%esp
+	popl	%ebp
+	ret
+
+So, I'f I'm getting marked off for making function calls that visit another funciton, I'd like for it only to be that one line, and not for failing 20+ tests. 
+
+Also, I seem to segfault after my array is accessed. 
+
+

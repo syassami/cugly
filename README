@@ -1,0 +1,9 @@
+Project 5 By: Shayan Yassami (Previous Code Buddy Aria Pourjanzani)
+
+Personal note: I didn't have a lot filled out in my p4, and still had issues to resovle with how I was passing Lit's throuhg my parser, It'd make a lot more sense to replace the grade of p4 with this one instead.
+
+This project is the granddaddy of all computer science projects I've done in any class. Fundamentally I've learned a plethora about compilers and It's helped me in many ways. From scanning/parsing/typechecking to eventually generating the code has been quite a ride and not the easiest of rides, yet very informative and probably the best way to teach a student like myself aabout compilers. 
+
+Biggest help was the links posted by T.Sherwood in the google groups and also the slides from Liang Xia, although some things were missing from his examples, ie, visiting children manuallywhich really helped in a lot of my control flow (as seen in the code)
+
+
